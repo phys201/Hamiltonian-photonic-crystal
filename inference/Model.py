@@ -1,4 +1,7 @@
 from pytensor import tensor as pt
+import numpy as np
+import pymc as pm
+
 def Hamiltonian_model(data, prior_bounds):
     """
     returns a pymc model to infer the parameters for a four-basis Hamiltonian.
