@@ -25,6 +25,7 @@ class TestModelConstruction(TestCase):
         start1 = {'h11':0.007, 'u20':1e-4, 'A0':1, 'A1':1,'A2':1, 'A3':1, 'A4':1, 'peak_width':0.008} 
         self.assertEqual(None, test_Model.check_start_vals(start1))
 
+
     
 
 prior_bounds2 = {'h11': [1, 0],'u20':[-1e-3, 1e-3], 'A0':[0, 1.2], 'A1':[0.5, 2.5],'A2':[0.5, 2.5], 'A3':[0.5, 2.5], 'A4':[0.5, 2,5], 'peak_width':[0.003, 0.01]}
@@ -47,5 +48,6 @@ class TestLikelihoodProbability(TestCase):
 #     def test_value(self):
 #         test_model = Model(data, bounds)
 #         self.assertAlmostEqual(test_model.point_logps([point]), posterior)
+
 
 

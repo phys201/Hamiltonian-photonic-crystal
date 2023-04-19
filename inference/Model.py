@@ -22,9 +22,9 @@ def Hamiltonian_model(data, prior_bounds):
     
     """
     #extract data to numpy arrays
-    freq = data['x'].to_numpy()
-    intensity = data['y'].to_numpy()
-    intensity_sig = data['sigma_y'].to_numpy()
+    freq = data['normf'].to_numpy()
+    intensity = data['spectrum'].to_numpy()
+    intensity_sig = data['spectrum_std'].to_numpy()
     
     def likelihood(theta, y, x, sigma_y):
         """
