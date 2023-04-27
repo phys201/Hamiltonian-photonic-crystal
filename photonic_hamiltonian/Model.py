@@ -1,6 +1,7 @@
 from pytensor import tensor as pt
 import numpy as np
 import pymc as pm
+import pytensor
 
 def Hamiltonian_model(data, prior_bounds):
     """
@@ -48,59 +49,68 @@ def Hamiltonian_model(data, prior_bounds):
         ey = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
         
         #Hamiltonian matrix
-        ham = [[ey,u11,u20,u11],
-               [u11,ex,u11,u20],
-               [u20,u11,ex,u11],
-               [u11,u20,u11,ey]]
+        ham_np = np.array([[ey,u11,u20,u11],
+                           [u11,ex,u11,u20],
+                           [u20,u11,ex,u11],
+                           [u11,u20,u11,ey]])
+        ham = pytensor.shared(np.zeros((4,4)))
+        for row in range(4):
+            for col in range(4):
+                ham = pt.set_subtensor(ham[row, col], ham_np[row, col])
         
         #peak heights and peak positions
-        An = [A1, A2, A3, A4]
-        Cn = np.real(np.linalg.eigvals(ham))
+        An_np = np.array([A1,A2,A3,A4])
+        An = pytensor.shared(np.zeros(4))
+        for col in range(4):
+            An = pt.set_subtensor(An[col], An_np[col])
+
+        Cn = pt.nlinalg.eigh(ham)[0]
+        # make sure eigenvalues are sorted
+        Cn = pt.sort(Cn)
         
         #expectation value as sum of 4 gaussian peaks and background
-        gaussian_list = [Ai * np.exp(-(x - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)]
-        line = A0 + np.sum(gaussian_list,axis=0)
+        line = A0 + An[0] * pt.exp(-pt.sqr(x - Cn[0]) / (2 * pt.sqr(sigma_L))) + An[1] * pt.exp(-pt.sqr(x - Cn[1]) / (2 * pt.sqr(sigma_L))) + An[2] * pt.exp(-pt.sqr(x - Cn[2]) / (2 * pt.sqr(sigma_L))) + An[3] * pt.exp(-pt.sqr(x - Cn[3]) / (2 * pt.sqr(sigma_L)))
         
-        return np.sum(-(0.5 / sigma_y**2) * (y - line) ** 2)
+        return pt.sum(-(0.5 / pt.sqr(sigma_y)) * pt.sqr(y - line))
         
-    class LogLike(pt.Op):
-        """
-        Passing the Op a vector of values (the parameters that define our model)
-        and returning a scalar value of loglike likelihood.
-        """
-        itypes = [pt.dvector]  # expects a vector of parameter values when called
-        otypes = [pt.dscalar]  # outputs a vector of peak positions
+#     class LogLike(pt.Op):
+#         """
+#         Passing the Op a vector of values (the parameters that define our model)
+#         and returning a scalar value of loglike likelihood.
+#         """
+#         itypes = [pt.dvector]  # expects a vector of parameter values when called
+#         otypes = [pt.dscalar]  # outputs a vector of peak positions
 
-        def __init__(self, likelihood, y, x, sigma_y):
-            """
-            Initialise the Op with things that our log-likelihood function
-            requires.
+#         def __init__(self, likelihood, y, x, sigma_y):
+#             """
+#             Initialise the Op with things that our log-likelihood function
+#             requires.
     
-            Parameters
-            ----------
-            likelihood:
-                The log-likelihood function we've defined
-            y, x, sigma_y:
-                Our data
-            """
+#             Parameters
+#             ----------
+#             likelihood:
+#                 The log-likelihood function we've defined
+#             y, x, sigma_y:
+#                 Our data
+#             """
 
-            # add inputs as class attributes
-            self.likelihood = likelihood #your Hamiltonian function goes in here
-            self.x = x
-            self.y = y 
-            self.sigma = sigma_y
+#             # add inputs as class attributes
+#             self.likelihood = likelihood #your Hamiltonian function goes in here
+#             self.x = x
+#             self.y = y 
+#             self.sigma = sigma_y
 
-        def perform(self, node, inputs, outputs):
-            # the method that is used when calling the Op
-            (theta,) = inputs  # this will contain all variables
+#         def perform(self, node, inputs, outputs):
+#             # the method that is used when calling the Op
+#             (theta,) = inputs  # this will contain all variables
 
-            # call the loglike function
-            model = self.likelihood(theta, self.y, self.x, self.sigma)
+#             # call the loglike function
+#             model = self.likelihood(theta, self.y, self.x, self.sigma)
             
-            outputs[0][0] = np.array(model)  # output the log-likelihood
+#             outputs[0][0] = np.array(model)  # output the log-likelihood
     
     ham_model = pm.Model()
-    logl = LogLike(likelihood, intensity, freq, intensity_sig)
+    # logl = LogLike(likelihood, intensity, freq, intensity_sig)
     with ham_model:
         # Priors for unknown model parameters
         theta_list = []
@@ -114,7 +124,7 @@ def Hamiltonian_model(data, prior_bounds):
         theta = pt.as_tensor_variable(theta_list)
     
         # Likelihood of observations
-        pm.Potential("likelihood", logl(theta))
+        pm.Potential("likelihood", likelihood(theta, intensity, freq, intensity_sig))
 
     return ham_model
 
