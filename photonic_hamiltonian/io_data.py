@@ -9,10 +9,12 @@ import xarray as xr
 
 def io_data(filename):
     """
-    da: 'normf' 'spectrum' 'spectrum_std'
-    meata data (exp): information of raw data incluting chip name, measurement condition
-    meta data (simu): information of simulation paramenters
+    Returns simulated / experimental data in xarray.Dataset
+    ----
+    Parameters:
+        filename: name of .nc file 
     """
     da = xr.open_dataset(filename)
-    print('information of loaded data: '+ da.attrs)
+    print('information of loaded data:')
+    print(da.attrs)
     return da
