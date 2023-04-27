@@ -27,6 +27,7 @@ def Hamiltonian_model(data, prior_bounds):
     intensity = data['spectrum'].to_numpy()
     intensity_sig = data['spectrum_std'].to_numpy()
     
+    #define likelihood function
     def likelihood(theta, y, x, sigma_y):
         """
         returns the loglike likelihood of our model
@@ -49,8 +50,8 @@ def Hamiltonian_model(data, prior_bounds):
         ey = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
         
         #Hamiltonian matrix
-        ham_np = np.array([[ey,u11,u20,u11],
-                           [u11,ex,u11,u20],
+        ham_np = np.array([[ex,u11,u20,u11],
+                           [u11,ey,u11,u20],
                            [u20,u11,ex,u11],
                            [u11,u20,u11,ey]])
         ham = pytensor.shared(np.zeros((4,4)))
@@ -72,45 +73,9 @@ def Hamiltonian_model(data, prior_bounds):
         line = A0 + An[0] * pt.exp(-pt.sqr(x - Cn[0]) / (2 * pt.sqr(sigma_L))) + An[1] * pt.exp(-pt.sqr(x - Cn[1]) / (2 * pt.sqr(sigma_L))) + An[2] * pt.exp(-pt.sqr(x - Cn[2]) / (2 * pt.sqr(sigma_L))) + An[3] * pt.exp(-pt.sqr(x - Cn[3]) / (2 * pt.sqr(sigma_L)))
         
         return pt.sum(-(0.5 / pt.sqr(sigma_y)) * pt.sqr(y - line))
-        
-#     class LogLike(pt.Op):
-#         """
-#         Passing the Op a vector of values (the parameters that define our model)
-#         and returning a scalar value of loglike likelihood.
-#         """
-#         itypes = [pt.dvector]  # expects a vector of parameter values when called
-#         otypes = [pt.dscalar]  # outputs a vector of peak positions
-
-#         def __init__(self, likelihood, y, x, sigma_y):
-#             """
-#             Initialise the Op with things that our log-likelihood function
-#             requires.
     
-#             Parameters
-#             ----------
-#             likelihood:
-#                 The log-likelihood function we've defined
-#             y, x, sigma_y:
-#                 Our data
-#             """
-
-#             # add inputs as class attributes
-#             self.likelihood = likelihood #your Hamiltonian function goes in here
-#             self.x = x
-#             self.y = y 
-#             self.sigma = sigma_y
-
-#         def perform(self, node, inputs, outputs):
-#             # the method that is used when calling the Op
-#             (theta,) = inputs  # this will contain all variables
-
-#             # call the loglike function
-#             model = self.likelihood(theta, self.y, self.x, self.sigma)
-            
-#             outputs[0][0] = np.array(model)  # output the log-likelihood
-    
+    #create the multi Gaussian peak model
     ham_model = pm.Model()
-    # logl = LogLike(likelihood, intensity, freq, intensity_sig)
     with ham_model:
         # Priors for unknown model parameters
         theta_list = []
@@ -144,17 +109,18 @@ def fit_curve(freq, theta):
     line (NumPy array):
         The array of corresponding fitted intensity
     """
-    ex = 0.6346    # for k = (0,+-0.05) the energy of uncoupled slab mode in kx direction
-    ey = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode in ky direction
+    ey = 0.6346    # for k = (0,+-0.05) the energy of uncoupled slab mode in kx direction
+    ex = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode in ky direction
     u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
     An = [A1, A2, A3, A4]
     
     #Hamiltonian matrix and its eigenvalues as line peaks
-    H = [[ey,u11,u20,u11],
-         [u11,ex,u11,u20],
+    H = [[ex,u11,u20,u11],
+         [u11,ey,u11,u20],
          [u20,u11,ex,u11],
          [u11,u20,u11,ey]]
     Cn = np.real(np.linalg.eigvals(H))
+    Cn = np.sort(Cn)
     
     #calculate normalized intensity
     line_each = [Ai * np.exp(-(freq - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)]
