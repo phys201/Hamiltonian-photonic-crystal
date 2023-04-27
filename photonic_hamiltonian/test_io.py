@@ -5,17 +5,17 @@ import io_data
 
 
 filename = "expdata_singleKspectrum.nc"
-data = io.load_data(filename)
+data = io_data.load_data(filename)
 class TestDataConversion(TestCase):
     
     def test_data_is_returned(self):
-        self.assertTrue(isinstance(io.load_data(filename), xr.DataSet))  
+        self.assertTrue(isinstance(io_data.load_data(filename), xr.core.dataset.Dataset))  
         
-    def test_data_file_notexist(TestCase):
-        self.assertRaises(FileNotFoundError, io.load_data("expdata_singleKspectrum.nc"))
+    def test_data_file_notexist(self):
+        self.assertRaises(FileNotFoundError, io_data.load_data, 'expdata.nc')
         
     def test_key_not_in_data(self):
-        self.assertRaises(KeyError, data['abc.nc'])
+        self.assertRaises(KeyError, data.__getitem__, 'abc')
         
     def test_key_in_data(self):
-        self.assertTrue(data['normf'])
+        self.assertTrue(data['normf'].all())
