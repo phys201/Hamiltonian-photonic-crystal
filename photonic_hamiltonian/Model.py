@@ -54,7 +54,7 @@ def Hamiltonian_model(data, prior_bounds):
                [u11,u20,u11,C2]]
         
         #peak heights and peak positions
-        An = [A1,A2,A3,A4]
+        An = [A1, A2, A3, A4]
         Cn = np.real(np.linalg.eigvals(ham))
         
         #expectation value as sum of 4 gaussian peaks and background
