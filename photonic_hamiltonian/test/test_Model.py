@@ -39,9 +39,26 @@ class TestLikelihoodProbability(TestCase):
         
 
         
+u11 = 0.007
+u20 = 1e-5
+A0 = 0.5
+A1, A2, A3, A4 = [1, 1.2, 1.5, 1]
+An = [A1, A2, A3, A4]
+sigma_L = 0.002
+theta = [u11, u20, A0, A1, A2, A3, A4, sigma_L]
+ex = 0.669
+ey = 0.6346
+Cn = np.real(np.linalg.eigvals([[ex,u11,u20,u11],
+                                [u11,ey,u11,u20],
+                                [u20,u11,ey,u11],
+                                [u11,u20,u11,ex]]))
+Cn = np.sort(Cn)
+freq = 0.6
+intensity = A0 + np.sum([Ai * np.exp(-(freq - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)])
 
-# class TestFitCurve(TestCase):
-#     def test_fit_result(self):
-#         self.assertAlmostEqual()
-#     def test_insufficient_parameters(self):
-#         self.assertRaises()
+class TestFitCurve(TestCase):
+    def test_fit_result(self):
+        self.assertAlmostEqual(Model.fit_curve(freq, theta), intensity)
+    def test_insufficient_parameters(self):
+        theta_insuff = [u11, u20, A0, A1, A2, A3]
+        self.assertRaises(ValueError, Model.fit_curve, freq, theta_insuff)
