@@ -5,7 +5,7 @@
 import numpy as np
 import xarray as xr
 
-def io_data(filename):
+def load_data(filename):
     """
     Returns simulated / experimental data in xarray.Dataset
     ---
