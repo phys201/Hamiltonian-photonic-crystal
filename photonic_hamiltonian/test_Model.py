@@ -2,8 +2,7 @@
 from unittest import TestCase
 import numpy as np
 import pymc as pm
-
-from inference import Model, io_data
+import Model, io_data
 
 
 filename = "expdata_singleKspectrum.nc"
