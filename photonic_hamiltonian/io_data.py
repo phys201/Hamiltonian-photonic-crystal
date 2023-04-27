@@ -13,7 +13,4 @@ def io_data(filename):
         filename: name of .nc file 
     """
     da = xr.open_dataset(filename)
-
-    print('information of loaded data:')
-    print(da.attrs)
     return da
