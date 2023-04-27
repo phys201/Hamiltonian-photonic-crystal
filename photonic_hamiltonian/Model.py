@@ -44,8 +44,8 @@ def Hamiltonian_model(data, prior_bounds):
         h11, u20, A0, A1, A2, A3, A4, sigma_L = theta
         
         #energy of each mode is assumed to be fixed
-        C = 0.6346    # for k = (0.05,0) the eigen frequency of uncoupled slab mode 1 (*2 degeneracy)
-        C2 = 0.669    # for k = (0.05,0) the eigen frequency of uncoupled slab mode 2 (*2 degeneracy)
+        C = 0.6346    # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
+        C2 = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
         
         #Hamiltonian matrix
         ham = [[C2,h11,u20,h11],
