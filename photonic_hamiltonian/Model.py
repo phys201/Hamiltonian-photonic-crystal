@@ -38,20 +38,20 @@ def Hamiltonian_model(data, prior_bounds):
             the loglike likelihood (float)
         """
         #for our four-basis Hamiltonian, the parameters include
-        #interaction-between-modes terms h11, u20;
+        #interaction-between-modes terms u11, u20;
         #background A0 and heights of 4 peaks A1, A2, A3, A4
         #peak width (assumed to be the same for all peaks) sigma_L
         u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
         
         #energy of each mode is assumed to be fixed
-        C = 0.6346    # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
-        C2 = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
+        ex = 0.6346    # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
+        ey = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
         
         #Hamiltonian matrix
-        ham = [[C2,u11,u20,u11],
-               [u11,C,u11,u20],
-               [u20,u11,C,u11],
-               [u11,u20,u11,C2]]
+        ham = [[ey,u11,u20,u11],
+               [u11,ex,u11,u20],
+               [u20,u11,ex,u11],
+               [u11,u20,u11,ey]]
         
         #peak heights and peak positions
         An = [A1, A2, A3, A4]
@@ -105,6 +105,9 @@ def Hamiltonian_model(data, prior_bounds):
         # Priors for unknown model parameters
         theta_list = []
         for i in list(prior_bounds.keys()):
+            #check if the lower bound is strictly smaller than the upper bound
+            if prior_bounds[i][0] >= prior_bounds[i][1]:
+                raise ValueError
             theta_list.append(pm.Uniform(i, lower=prior_bounds[i][0], upper=prior_bounds[i][1]))
     
         #input of our log-likelihood
