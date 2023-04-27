@@ -46,14 +46,14 @@ def Hamiltonian_model(data, prior_bounds):
         u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
         
         #energy of each mode is assumed to be fixed
-        ex = 0.6346    # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
-        ey = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
+        ex = 0.669   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
+        ey = 0.6346    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
         
         #Hamiltonian matrix
         ham_np = np.array([[ex,u11,u20,u11],
                            [u11,ey,u11,u20],
-                           [u20,u11,ex,u11],
-                           [u11,u20,u11,ey]])
+                           [u20,u11,ey,u11],
+                           [u11,u20,u11,ex]])
         ham = pytensor.shared(np.zeros((4,4)))
         for row in range(4):
             for col in range(4):
@@ -109,18 +109,19 @@ def fit_curve(freq, theta):
     line (NumPy array):
         The array of corresponding fitted intensity
     """
-    ey = 0.6346    # for k = (0,+-0.05) the energy of uncoupled slab mode in kx direction
-    ex = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode in ky direction
+    ex = 0.669   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
+    ey = 0.6346    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
     u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
     An = [A1, A2, A3, A4]
     
     #Hamiltonian matrix and its eigenvalues as line peaks
     H = [[ex,u11,u20,u11],
          [u11,ey,u11,u20],
-         [u20,u11,ex,u11],
-         [u11,u20,u11,ey]]
+         [u20,u11,ey,u11],
+         [u11,u20,u11,ex]]
     Cn = np.real(np.linalg.eigvals(H))
     Cn = np.sort(Cn)
+    print(Cn)
     
     #calculate normalized intensity
     line_each = [Ai * np.exp(-(freq - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)]
