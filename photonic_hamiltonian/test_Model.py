@@ -7,8 +7,8 @@ from inference import Model
 from inference import io
 
 
-filename = "new_expdata_GM0.05.nc"
-data = io.io(filename) #put some filename here
+filename = "expdata_GM0p05.nc"
+data = io_data.io_data(filename) #put some filename here
 prior_bounds_standard = {'h11':[0.007, 0.01], 'u20':[-1e-3, 1e-3], 'A0':[0, 1.2], 'A1':[0.5, 2.5],'A2':[0.5, 2.5], 'A3':[0.5, 2.5], 'A4':[0.5, 2,5], 'peak_width':[0.003, 0.01]}
     
 test_Model = Model.Hamiltonian_model(data, prior_bounds_standard)
