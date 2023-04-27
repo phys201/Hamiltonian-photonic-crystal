@@ -41,17 +41,17 @@ def Hamiltonian_model(data, prior_bounds):
         #interaction-between-modes terms h11, u20;
         #background A0 and heights of 4 peaks A1, A2, A3, A4
         #peak width (assumed to be the same for all peaks) sigma_L
-        h11, u20, A0, A1, A2, A3, A4, sigma_L = theta
+        u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
         
         #energy of each mode is assumed to be fixed
         C = 0.6346    # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
         C2 = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
         
         #Hamiltonian matrix
-        ham = [[C2,h11,u20,h11],
-               [h11,C,h11,u20],
-               [u20,h11,C,h11],
-               [h11,u20,h11,C2]]
+        ham = [[C2,u11,u20,u11],
+               [u11,C,u11,u20],
+               [u20,u11,C,u11],
+               [u11,u20,u11,C2]]
         
         #peak heights and peak positions
         An = [A1,A2,A3,A4]
@@ -114,3 +114,37 @@ def Hamiltonian_model(data, prior_bounds):
         pm.Potential("likelihood", logl(theta))
 
     return ham_model
+
+def fit_curve(freq, theta):
+    """
+    Calculate the multi Gaussian peak curve fit using a set of given fitting parameters
+
+    Parameters
+    ----------
+    freq (NumPy array):
+        The array of normalized frequency (x data)
+    theta (list):
+        The list of fitting parameters, in the order u11, u20, A0, A1, A2, A3, A4, sigma_L
+        
+    Return
+    ---------
+    line (NumPy array):
+        The array of corresponding fitted intensity
+    """
+    ex = 0.6346    # for k = (0,+-0.05) the energy of uncoupled slab mode in kx direction
+    ey = 0.669    # for k = (+-0.05,0) the energy of uncoupled slab mode in ky direction
+    u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
+    An = [A1, A2, A3, A4]
+    
+    #Hamiltonian matrix and its eigenvalues as line peaks
+    H = [[ey,u11,u20,u11],
+         [u11,ex,u11,u20],
+         [u20,u11,ex,u11],
+         [u11,u20,u11,ey]]
+    Cn = np.real(np.linalg.eigvals(H))
+    
+    #calculate normalized intensity
+    line_each = [Ai * np.exp(-(freq - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)]
+    line = np.sum(line_each, axis=0) + A0
+    
+    return line
