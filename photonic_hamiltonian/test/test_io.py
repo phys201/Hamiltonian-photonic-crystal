@@ -2,7 +2,7 @@ import unittest
 from unittest import TestCase
 import numpy as np
 import xarray as xr
-from lib import io_data
+from inference import io_data
 
 
 filename = "data\expdata_singleKspectrum.nc"
