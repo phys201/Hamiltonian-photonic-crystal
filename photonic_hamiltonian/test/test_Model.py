@@ -1,11 +1,12 @@
 # this file contains tests of prior.py
+import unittest
 from unittest import TestCase
 import numpy as np
 import pymc as pm
-import Model, io_data
+from lib import Model, io_data
 
 
-filename = "expdata_singleKspectrum.nc"
+filename = "data\expdata_singleKspectrum.nc"
 data = io_data.load_data(filename)
 prior_bounds_standard = {'u11':[0.007, 0.01], 'u20':[-1e-3, 1e-3], 'A0':[0, 1.2], 'A1':[0.5, 2.5],'A2':[0.5, 2.5], 'A3':[0.5, 2.5], 'A4':[0.5, 2,5], 'peak_width':[0.003, 0.01]}
     
@@ -35,6 +36,12 @@ start2 = start = {'u11_interval__':-np.Inf, 'u20_interval__':0, 'A0_interval__':
 class TestLikelihoodProbability(TestCase):
     def test_peak_width_positive(self):
         self.assertRaises(pm.exceptions.SamplingError, test_Model.check_start_vals, start2)
+        
 
+        
 
-
+# class TestFitCurve(TestCase):
+#     def test_fit_result(self):
+#         self.assertAlmostEqual()
+#     def test_insufficient_parameters(self):
+#         self.assertRaises()

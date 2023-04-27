@@ -1,10 +1,11 @@
+import unittest
 from unittest import TestCase
 import numpy as np
 import xarray as xr
-import io_data
+from lib import io_data
 
 
-filename = "expdata_singleKspectrum.nc"
+filename = "data\expdata_singleKspectrum.nc"
 data = io_data.load_data(filename)
 class TestDataConversion(TestCase):
     
