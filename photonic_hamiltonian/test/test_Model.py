@@ -6,7 +6,7 @@ import pymc as pm
 from inference import Model, io_data
 
 
-filename = "data\expdata_singleKspectrum.nc"
+filename = "photonic_hamiltonian/data/expdata_singleKspectrum.nc"
 data = io_data.load_data(filename)
 prior_bounds_standard = {'u11':[0.007, 0.01], 'u20':[-1e-3, 1e-3], 'A0':[0, 1.2], 'A1':[0.5, 2.5],'A2':[0.5, 2.5], 'A3':[0.5, 2.5], 'A4':[0.5, 2,5], 'peak_width':[0.003, 0.01]}
     
