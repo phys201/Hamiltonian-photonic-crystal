@@ -28,7 +28,7 @@ def Hamiltonian_model(data, prior_bounds):
     intensity_sig = data['spectrum_std'].to_numpy()
     
     #define likelihood function
-    def model(theta, y, x):
+    def likelihood(theta, y, x, sigma_y):
         """
         returns the loglike likelihood of our model
         
@@ -59,7 +59,6 @@ def Hamiltonian_model(data, prior_bounds):
             for col in range(4):
                 ham = pt.set_subtensor(ham[row, col], ham_np[row, col])
         
-        #edit the pytensors so it's cleaner: how to write some constants and some are pytensors
         #peak heights and peak positions
         An_np = np.array([A1,A2,A3,A4])
         An = pytensor.shared(np.zeros(4))
@@ -71,8 +70,10 @@ def Hamiltonian_model(data, prior_bounds):
         Cn = pt.sort(Cn)
         
         #expectation value as sum of 4 gaussian peaks and background
-        #VINNY EDITS: make thispart extensible. Probably use a loop.pytensor sort of thing, or make a new pytensor and do pt.sum
-        return A0 + An[0] * pt.exp(-pt.sqr(x - Cn[0]) / (2 * pt.sqr(sigma_L))) + An[1] * pt.exp(-pt.sqr(x - Cn[1]) / (2 * pt.sqr(sigma_L))) + An[2] * pt.exp(-pt.sqr(x - Cn[2]) / (2 * pt.sqr(sigma_L))) + An[3] * pt.exp(-pt.sqr(x - Cn[3]) / (2 * pt.sqr(sigma_L)))
+        line = A0 + An[0] * pt.exp(-pt.sqr(x - Cn[0]) / (2 * pt.sqr(sigma_L))) + An[1] * pt.exp(-pt.sqr(x - Cn[1]) / (2 * pt.sqr(sigma_L))) + An[2] * pt.exp(-pt.sqr(x - Cn[2]) / (2 * pt.sqr(sigma_L))) + An[3] * pt.exp(-pt.sqr(x - Cn[3]) / (2 * pt.sqr(sigma_L)))
+        
+        return pt.sum(-(0.5 / pt.sqr(sigma_y)) * pt.sqr(y - line))
+    
     #create the multi Gaussian peak model
     ham_model = pm.Model()
     with ham_model:
@@ -86,9 +87,10 @@ def Hamiltonian_model(data, prior_bounds):
     
         #input of our log-likelihood
         theta = pt.as_tensor_variable(theta_list)
-        model_predictions = model(theta,intensity,freq)
+    
         # Likelihood of observations
-        pm.Potential("likelihood", mo = model_predictions, sigma = intensity_sig, observed = intensity)
+        pm.Potential("likelihood", likelihood(theta, intensity, freq, intensity_sig))
+
     return ham_model
 
 def fit_curve(freq, theta):
