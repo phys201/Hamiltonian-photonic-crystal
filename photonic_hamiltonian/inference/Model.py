@@ -88,7 +88,7 @@ def Hamiltonian_model(data, prior_bounds):
         theta = pt.as_tensor_variable(theta_list)
         model_predictions = model(theta,intensity,freq)
         # Likelihood of observations
-        pm.Potential("likelihood", mo = model_predictions, sigma = intensity_sig, observed = intensity)
+        likelihood = pm.Normal('likelihood',mu = model_predictions, sigma = intensity_sig, observed = intensity)
     return ham_model
 
 def fit_curve(freq, theta):
