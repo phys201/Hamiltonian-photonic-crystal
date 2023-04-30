@@ -1,9 +1,10 @@
+# infer ex delta
 from pytensor import tensor as pt
 import numpy as np
 import pymc as pm
 import pytensor
 
-def Hamiltonian_model(data, prior_bounds):
+def Hamiltonian_model(data,prior_bounds):
     """
     returns a pymc model to infer the parameters for a four-basis Hamiltonian.
     The piors on all parameters ~ Uniform(given lower, given upper)
@@ -26,9 +27,10 @@ def Hamiltonian_model(data, prior_bounds):
     freq = data['normf'].to_numpy()
     intensity = data['spectrum'].to_numpy()
     intensity_sig = data['spectrum_std'].to_numpy()
-    
+    kx = 0.05
+    ky = 0
     #define likelihood function
-    def model(theta, y, x):
+    def likelihood(theta, y, x, sigma_y):
         """
         returns the loglike likelihood of our model
         
@@ -43,36 +45,41 @@ def Hamiltonian_model(data, prior_bounds):
         #interaction-between-modes terms u11, u20;
         #background A0 and heights of 4 peaks A1, A2, A3, A4
         #peak width (assumed to be the same for all peaks) sigma_L
-        u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
-        
-        #energy of each mode is assumed to be fixed
-        ex = 0.669   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
-        ey = 0.6346    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
-        
+        u11, u20, e0, de, A0, A1, A2, A3, A4, W1, W2, W3, W4 = theta
+        ex = e0+de   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
+        ey = e0-de   # for k = (+-0.05,0) the energy of uncoupled slab mode 2
+        ham = pytensor.shared(np.zeros((4,4)))
         #Hamiltonian matrix
         ham_np = np.array([[ex,u11,u20,u11],
                            [u11,ey,u11,u20],
                            [u20,u11,ey,u11],
                            [u11,u20,u11,ex]])
-        ham = pytensor.shared(np.zeros((4,4)))
+        
         for row in range(4):
             for col in range(4):
+               
                 ham = pt.set_subtensor(ham[row, col], ham_np[row, col])
         
-        #edit the pytensors so it's cleaner: how to write some constants and some are pytensors
         #peak heights and peak positions
         An_np = np.array([A1,A2,A3,A4])
         An = pytensor.shared(np.zeros(4))
+        Wn_np = np.array([W1, W2, W3, W4])
+        Wn = pytensor.shared(np.zeros(4))
         for col in range(4):
             An = pt.set_subtensor(An[col], An_np[col])
+            Wn = pt.set_subtensor(Wn[col], Wn_np[col])
 
         Cn = pt.nlinalg.eigh(ham)[0]
         # make sure eigenvalues are sorted
         Cn = pt.sort(Cn)
-        
+
         #expectation value as sum of 4 gaussian peaks and background
-        #VINNY EDITS: make thispart extensible. Probably use a loop.pytensor sort of thing, or make a new pytensor and do pt.sum
-        return A0 + An[0] * pt.exp(-pt.sqr(x - Cn[0]) / (2 * pt.sqr(sigma_L))) + An[1] * pt.exp(-pt.sqr(x - Cn[1]) / (2 * pt.sqr(sigma_L))) + An[2] * pt.exp(-pt.sqr(x - Cn[2]) / (2 * pt.sqr(sigma_L))) + An[3] * pt.exp(-pt.sqr(x - Cn[3]) / (2 * pt.sqr(sigma_L)))
+        #line = A0 + An[0] * pt.exp(-pt.sqr(x - Cn[0]) / (2 * pt.sqr(sigma_L))) + An[1] * pt.exp(-pt.sqr(x - Cn[1]) / (2 * pt.sqr(sigma_L))) + An[2] * pt.exp(-pt.sqr(x - Cn[2]) / (2 * pt.sqr(sigma_L))) + An[3] * pt.exp(-pt.sqr(x - Cn[3]) / (2 * pt.sqr(sigma_L)))
+        #### lorentz = [(Ai * sigma_n**2)/((f - Ci)**2 + sigma_n**2) for Ai, Ci, sigma_n in zip(An, Cn,sigma_n)]
+        line0 = An[0]*pt.sqr(Wn[0])/(pt.sqr(x-Cn[0])+pt.sqr(Wn[0])) + An[1]*pt.sqr(Wn[1])/(pt.sqr(x - Cn[1])+pt.sqr(Wn[1])) + An[2]*pt.sqr(Wn[2])/(pt.sqr(x - Cn[2])+pt.sqr(Wn[2]))+An[3]*pt.sqr(Wn[3])/(pt.sqr(x - Cn[3])+pt.sqr(Wn[3]))
+        line = A0+line0
+        return pt.sum(-(0.5 / pt.sqr(sigma_y)) * pt.sqr(y - line))
+    
     #create the multi Gaussian peak model
     ham_model = pm.Model()
     with ham_model:
@@ -86,9 +93,10 @@ def Hamiltonian_model(data, prior_bounds):
     
         #input of our log-likelihood
         theta = pt.as_tensor_variable(theta_list)
-        model_predictions = model(theta,intensity,freq)
+    
         # Likelihood of observations
-        likelihood = pm.Normal('likelihood',mu = model_predictions, sigma = intensity_sig, observed = intensity)
+        pm.Potential("likelihood", likelihood(theta,intensity, freq, intensity_sig))
+
     return ham_model
 
 def fit_curve(freq, theta):
@@ -107,11 +115,13 @@ def fit_curve(freq, theta):
     line (NumPy array):
         The array of corresponding fitted intensity
     """
-    ex = 0.669   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
-    ey = 0.6346    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
-    u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
+
+    u11, u20, e0,de, A0, A1, A2, A3, A4, W1, W2, W3, W4 = theta
     An = [A1, A2, A3, A4]
-    
+    Wn = [W1, W2, W3, W4]
+    ex = e0+de   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
+    ey = e0-de   # for k = (+-0.05,0) the energy of uncoupled slab mode 2
+
     #Hamiltonian matrix and its eigenvalues as line peaks
     H = [[ex,u11,u20,u11],
          [u11,ey,u11,u20],
@@ -121,7 +131,9 @@ def fit_curve(freq, theta):
     Cn = np.sort(Cn)
     
     #calculate normalized intensity
-    line_each = [Ai * np.exp(-(freq - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)]
-    line = np.sum(line_each, axis=0) + A0
+    line = [(Ai * Wi**2)/((freq- Ci)**2 + Wi**2) for Ai, Ci, Wi in zip(An, Cn, Wn)]
+    
+    #line_each = [Ai * np.exp(-(freq - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)]
+    line = np.sum(line, axis=0) + A0
     
     return line
