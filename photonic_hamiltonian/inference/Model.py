@@ -2,7 +2,6 @@ from pytensor import tensor as pt
 import numpy as np
 import pymc as pm
 import pytensor
-from pytensor.tensor.shape import Unbroadcast
 
 def prediction_model(theta, x):
     """
