@@ -41,7 +41,7 @@ def prediction_model(theta, x):
     
     #Diagonalize the matrix in two cases
     #if diagonalize a Numpy array matrix object
-    if type(theta[0]) == float:
+    if isinstance(theta[0], pt.TensorVariable) == False:
         Cn_np = np.real(np.linalg.eigvals(ham_np))
         Cn_np = np.sort(Cn_np)
     
@@ -66,10 +66,12 @@ def prediction_model(theta, x):
         Cn = pt.sort(Cn)
         
         #loop over An, Cn, Wn to calculate the cumulative sum of Lorentzians
-        output, updates = pytensor.scan(fn=lambda An, Cn, Wn: An * pt.sqr(Wn) / (pt.sqr(x-Cn) + pt.sqr(Wn)),
-                                        sequences=[An, Cn, Wn],
-                                        outputs_info=None)
-        line = A0 + output.sum()            
+        # output, updates = pytensor.scan(fn=lambda An, Cn, Wn: An * pt.sqr(Wn) / (pt.sqr(x-Cn) + pt.sqr(Wn)),
+        #                                sequences=[An, Cn, Wn],
+        #                                outputs_info=None)
+        # line = A0 + output.sum()
+        line = A0 + An[0] * pt.sqr(Wn[0]) / (pt.sqr(x-Cn[0]) + pt.sqr(Wn[0])) + An[1] * pt.sqr(Wn[1]) / (pt.sqr(x-Cn[1]) + pt.sqr(Wn[1])) + An[2] * pt.sqr(Wn[2]) / (pt.sqr(x-Cn[2]) + pt.sqr(Wn[2])) + An[3] * pt.sqr(Wn[3]) / (pt.sqr(x-Cn[3]) + pt.sqr(Wn[3]))
+    
     return line
 
 def Hamiltonian_model(data, priors):
