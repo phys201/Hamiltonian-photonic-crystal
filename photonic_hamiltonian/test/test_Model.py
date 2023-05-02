@@ -27,42 +27,42 @@ intensity = A0 + np.sum([(Ai * Wi**2) / ((freq- Ci)**2 + Wi**2) for Ai, Ci, Wi i
 
 class TestPredictionModel(TestCase):
     def test_fit_result(self):
-        self.assertAlmostEqual(Model.prediction_model(freq, theta), intensity)
+        self.assertAlmostEqual(Model.prediction_model(theta, freq), intensity)
     def test_insufficient_parameters(self):
         theta_insuff = [u11, u20, A0, A1, A2, A3]
-        self.assertRaises(ValueError, Model.prediction_model, freq, theta_insuff)
+        self.assertRaises(ValueError, Model.prediction_model, theta_insuff, freq)
 
 
 filename = "data\expdata_singleKspectrum.nc"
 data = io_data.load_data(filename)
 priors_example = {'u11':('Uniform', [0.007, 0.01]), 
                   'u20':('Uniform', [-1e-3, 1e-3]), 
-                  'e0':('Uniform', [0.64,0.68]),
-                  'de':('Uniform', [0.01,0.02]),
+                  'e0':('Uniform', [0.64, 0.68]),
+                  'de':('Uniform', [0.01, 0.02]),
                   'A0':('Uniform', [0, 1.2]), 
                   'A1':('Uniform', [0.5, 2.5]), 
                   'A2':('Uniform', [0.5, 2.5]), 
                   'A3':('Uniform', [0.5, 2.5]), 
-                  'A4':('Uniform', [0.5, 2,5]), 
+                  'A4':('Uniform', [0.5, 2.5]), 
                   'W1':('Uniform', [0.003, 0.01]),
                   'W2':('Uniform', [0.003, 0.01]),
                   'W3':('Uniform', [0.003, 0.01]),
                   'W4':('Uniform', [0.003, 0.01]), 
-                  'sigma_y':('Uniform', [0.05,0.2])}
+                  'sigma_y':('Uniform', [0.05, 0.2])}
     
-test_Model = Model.Hamiltonian_model(data, priors_example)
+model_test = Model.Hamiltonian_model(data, priors_example)
 class TestModelConstruction(TestCase):
     def test_Model_is_returned(self):
-        self.assertTrue(isinstance(test_Model, pm.Model))
+        self.assertTrue(isinstance(model_test, pm.Model))
 
 
     def test_initial_val_outside_bound(self):
         start = {'u11_interval__':-np.Inf, 'u20_interval__':0, 'e0_interval__':1, 'de_interval__': 0, 'A0_interval__':1.5, 'A1_interval__':3,'A2_interval__':3, 'A3_interval__':3, 'A4_interval__':3, 'W1_interval__':0.001, 'W2_interval__':0.001, 'W3_interval__':0.001, 'W4_interval__':0.001, 'sigma_y_interval__':0.001} 
-        self.assertRaises(pm.exceptions.SamplingError, test_Model.check_start_vals, start)
+        self.assertRaises(pm.exceptions.SamplingError, model_test.check_start_vals, start)
 
     def test_initial_val_inside_bound(self):
         start1 = {'u11_interval__':0, 'u20_interval__':0, 'e0_interval__':1, 'de_interval__': 0, 'A0_interval__':1.5, 'A1_interval__':3,'A2_interval__':3, 'A3_interval__':3, 'A4_interval__':3, 'W1_interval__':0.001, 'W2_interval__':0.001, 'W3_interval__':0.001, 'W4_interval__':0.001, 'sigma_y_interval__':0.001} 
-        self.assertEqual(None, test_Model.check_start_vals(start1))
+        self.assertEqual(None, model_test.check_start_vals(start1))
     
 
 priors_example_2 = priors_example
@@ -71,7 +71,7 @@ class TestPriorProperties(TestCase):
     def test_prior_type_not_allowed(self):
         self.assertRaises(ValueError, Model.Hamiltonian_model, data, priors_example_2)
 
-start2 = {'u11_interval__':0, 'u20_interval__':0, 'e0_interval__':1, 'de_interval__': 0, 'A0_interval__':1.5, 'A1_interval__':3,'A2_interval__':3, 'A3_interval__':3, 'A4_interval__':3, 'W1_interval__':-np.Inf, 'W2_interval__':0.001, 'W3_interval__':0.001, 'W4_interval__':0.001, 'sigma_y_interval__':0.001} 
 class TestLikelihoodProbability(TestCase):
     def test_peak_width_positive(self):
-        self.assertRaises(pm.exceptions.SamplingError, test_Model.check_start_vals, start2)
+        start2 = {'u11_interval__':0, 'u20_interval__':0, 'e0_interval__':1, 'de_interval__': 0, 'A0_interval__':1.5, 'A1_interval__':3,'A2_interval__':3, 'A3_interval__':3, 'A4_interval__':3, 'W1_interval__':-np.Inf, 'W2_interval__':0.001, 'W3_interval__':0.001, 'W4_interval__':0.001, 'sigma_y_interval__':0.001} 
+        self.assertRaises(pm.exceptions.SamplingError, model_test.check_start_vals, start2)

@@ -2,6 +2,7 @@ from pytensor import tensor as pt
 import numpy as np
 import pymc as pm
 import pytensor
+from pytensor.tensor.shape import Unbroadcast
 
 def prediction_model(theta, x):
     """
@@ -46,7 +47,7 @@ def prediction_model(theta, x):
         Cn_np = np.sort(Cn_np)
     
         #calculate normalized intensity
-        line_each = [(Ai * Wi**2) / ((freq- Ci)**2 + Wi**2) for Ai, Ci, Wi in zip(An_np, Cn_np, Wn_np)]
+        line_each = [(Ai * Wi**2) / ((x- Ci)**2 + Wi**2) for Ai, Ci, Wi in zip(An_np, Cn_np, Wn_np)]
         line = np.sum(line_each, axis=0) + A0
     #if diagonalize a PyTensor matrix object
     else:
@@ -64,13 +65,15 @@ def prediction_model(theta, x):
 
         Cn = pt.nlinalg.eigh(ham)[0]
         Cn = pt.sort(Cn)
-        line = A0
-        for i in range(4):
-            line = pt.sum(line, An[i] * pt.sqr(Wn[i]) / (pt.sqr(x-Cn[i]) + pt.sqr(Wn[i])))
-            
+        
+        #loop over An, Cn, Wn to calculate the cumulative sum of Lorentzians
+        output, updates = pytensor.scan(fn=lambda An, Cn, Wn: An * pt.sqr(Wn) / (pt.sqr(x-Cn) + pt.sqr(Wn)),
+                                        sequences=[An, Cn, Wn],
+                                        outputs_info=None)
+        line = A0 + output.sum()            
     return line
 
-def Hamiltonian_model(data,priors):
+def Hamiltonian_model(data, priors):
     """
     returns a pymc model to infer the parameters for a 4-basis Hamiltonian.
     The piors on all parameters are either Uniform, Gaussian, or Exponential
