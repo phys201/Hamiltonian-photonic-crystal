@@ -3,19 +3,93 @@ import numpy as np
 import pymc as pm
 import pytensor
 
-def Hamiltonian_model(data, prior_bounds):
+def prediction_model(theta, x):
     """
-    returns a pymc model to infer the parameters for a four-basis Hamiltonian.
-    The piors on all parameters ~ Uniform(given lower, given upper)
+    Calculate the multi Lorentzian peak curve fit using a set of given fitting parameters
+
+    Parameters
+    ----------
+    x (NumPy array):
+        The array of normalized frequency
+    theta (list of Floats or PyTensors):
+        The list of fitting parameters, in the order u11, u20, e0, de, A0, A1, A2, A3, A4, W1, W2, W3, W4
+        
+    Return
+    ---------
+    line (NumPy array or PyTensors):
+        The array of corresponding fitted intensity
+    """
+    #for our 4-basis Hamiltonian, the parameters include
+    #energy and its deviation of uncoupled modes: e0, de
+    #interaction-between-modes terms u11, u20;
+    #background A0
+    #heights of 4 peaks A1, A2, A3, A4
+    #widths of 4 peaks W1, W2, W3, W4
+    u11, u20, e0, de, A0, A1, A2, A3, A4, Q1, Q2, Q3, Q4 = theta
+
+    #energy of uncoupled modes
+    ex = e0 + de   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
+    ey = e0 - de   # for k = (+-0.05,0) the energy of uncoupled slab mode 2
+    
+    #Hamiltonian matrix
+    ham_np = np.array([[ex,u11,u20,u11],
+                       [u11,ey,u11,u20],
+                       [u20,u11,ey,u11],
+                       [u11,u20,u11,ex]])
+    An_np = np.array([A1,A2,A3,A4])
+    Qn_np = np.array([Q1,Q2,Q3,Q4])
+    
+    #Diagonalize the matrix in two cases
+    #if diagonalize a Numpy array matrix object
+    if isinstance(theta[0], pt.TensorVariable) == False:
+        Cn_np = np.real(np.linalg.eigvals(ham_np))
+        Cn_np = np.sort(Cn_np)
+        Wn_np = Cn_np/Qn_np
+        #calculate normalized intensity
+        line_each = [(Ai * Wi**2) / ((x- Ci)**2 + Wi**2) for Ai, Ci, Wi in zip(An_np, Cn_np, Wn_np)]
+        line = np.sum(line_each, axis=0) + A0
+    #if diagonalize a PyTensor matrix object
+    else:
+        ham = pytensor.shared(np.zeros((4,4)))
+        for row in range(4):
+            for col in range(4):
+                ham = pt.set_subtensor(ham[row, col], ham_np[row, col])
+
+        #peak heights, peak positions, and peak widths
+        An = pytensor.shared(np.zeros(4))
+        Qn = pytensor.shared(np.zeros(4))
+        for col in range(4):
+            An = pt.set_subtensor(An[col], An_np[col])
+            Qn = pt.set_subtensor(Qn[col], Qn_np[col])
+
+        Cn = pt.nlinalg.eigh(ham)[0]
+        Cn = pt.sort(Cn)
+        Wn = Cn/Qn
+        #loop over An, Cn, Wn to calculate the cumulative sum of Lorentzians
+        # output, updates = pytensor.scan(fn=lambda An, Cn, Wn: An * pt.sqr(Wn) / (pt.sqr(x-Cn) + pt.sqr(Wn)),
+        #                                sequences=[An, Cn, Wn],
+        #                                outputs_info=None)
+        # line = A0 + output.sum()
+        line = A0 + An[0] * pt.sqr(Wn[0]) / (pt.sqr(x-Cn[0]) + pt.sqr(Wn[0])) + An[1] * pt.sqr(Wn[1]) / (pt.sqr(x-Cn[1]) + pt.sqr(Wn[1])) + An[2] * pt.sqr(Wn[2]) / (pt.sqr(x-Cn[2]) + pt.sqr(Wn[2])) + An[3] * pt.sqr(Wn[3]) / (pt.sqr(x-Cn[3]) + pt.sqr(Wn[3]))
+    
+    return line
+
+def Hamiltonian_model(data, priors):
+    """
+    returns a pymc model to infer the parameters for a 4-basis Hamiltonian.
+    The piors on all parameters are either Uniform, Gaussian, or Exponential
     The likelihood ~ Gaussian(line, sigma_y)
-    Line is the expectation value obtained by taking the sum of background and 4 Gaussian peaked
+    Line is the expectation value obtained by taking the sum of background and 4 Lorentzians peaked
     at the eigenvalues of 4x4 Hamiltonian matrix
     
     Parameters:
         data: the data set of a single-momentum spectrum 
-              (DataArray with 'x': frequency, 'y': intensity, and 'sigma_y': intensity uncertainty)
-        prior_bounds: the bounds for uniform priors of all parameters we want to infer
-              (dict mapping a string, name of the parameter, to a list of its bounds [lower, upper])
+              (DataArray with 'normf': frequency, 'spectrum': intensity, and 'spectrum_std': intensity uncertainty)
+        priors: the prior types and prior coefficients of all parameters we want to infer
+              (dict mapping a string, name of the parameter, to a tuple (prior_type, [prior coefficients]))
+        For example: {'param 1':('Uniform', [lower bound, upper bound]),
+                    'param 2':('Gaussian', [mean, std])
+                    'param 3':('Exponential', [mean]}
               
     Return:
         ham_model: the pymc model can be used to infer the parameters and their posterior
@@ -24,106 +98,36 @@ def Hamiltonian_model(data, prior_bounds):
     """
     #extract data to numpy arrays
     freq = data['normf'].to_numpy()
-    intensity = data['spectrum'].to_numpy()
-    intensity_sig = data['spectrum_std'].to_numpy()
+    Nf = len(freq)
+    namef = ['y1','y2','y3','y4'] #measurements are repeated 4 times
+    intensity = np.zeros((4,Nf))
+    intensity[:] = [data[namef[i]].to_numpy() for i in range(4)]
     
-    #define likelihood function
-    def likelihood(theta, y, x, sigma_y):
-        """
-        returns the loglike likelihood of our model
-        
-        Parameters:
-            theta: the parameters in Hamiltonian matrix (list)
-            y, x, sigma_y: our data (numpy arrays)
-        
-        Return:
-            the loglike likelihood (float)
-        """
-        #for our four-basis Hamiltonian, the parameters include
-        #interaction-between-modes terms u11, u20;
-        #background A0 and heights of 4 peaks A1, A2, A3, A4
-        #peak width (assumed to be the same for all peaks) sigma_L
-        u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
-        
-        #energy of each mode is assumed to be fixed
-        ex = 0.669   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
-        ey = 0.6346    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
-        
-        #Hamiltonian matrix
-        ham_np = np.array([[ex,u11,u20,u11],
-                           [u11,ey,u11,u20],
-                           [u20,u11,ey,u11],
-                           [u11,u20,u11,ex]])
-        ham = pytensor.shared(np.zeros((4,4)))
-        for row in range(4):
-            for col in range(4):
-                ham = pt.set_subtensor(ham[row, col], ham_np[row, col])
-        
-        #peak heights and peak positions
-        An_np = np.array([A1,A2,A3,A4])
-        An = pytensor.shared(np.zeros(4))
-        for col in range(4):
-            An = pt.set_subtensor(An[col], An_np[col])
-
-        Cn = pt.nlinalg.eigh(ham)[0]
-        # make sure eigenvalues are sorted
-        Cn = pt.sort(Cn)
-        
-        #expectation value as sum of 4 gaussian peaks and background
-        line = A0 + An[0] * pt.exp(-pt.sqr(x - Cn[0]) / (2 * pt.sqr(sigma_L))) + An[1] * pt.exp(-pt.sqr(x - Cn[1]) / (2 * pt.sqr(sigma_L))) + An[2] * pt.exp(-pt.sqr(x - Cn[2]) / (2 * pt.sqr(sigma_L))) + An[3] * pt.exp(-pt.sqr(x - Cn[3]) / (2 * pt.sqr(sigma_L)))
-        
-        return pt.sum(-(0.5 / pt.sqr(sigma_y)) * pt.sqr(y - line))
-    
-    #create the multi Gaussian peak model
+    #create the multi Lorentzian peak model
     ham_model = pm.Model()
     with ham_model:
         # Priors for unknown model parameters
         theta_list = []
-        for i in list(prior_bounds.keys()):
-            #check if the lower bound is strictly smaller than the upper bound
-            if prior_bounds[i][0] >= prior_bounds[i][1]:
-                raise ValueError
-            theta_list.append(pm.Uniform(i, lower=prior_bounds[i][0], upper=prior_bounds[i][1]))
+        for i in list(priors.keys()):
+            if priors[i][0] == 'Uniform':
+                lower, upper = priors[i][1]
+                theta_list.append(pm.Uniform(i, lower, upper))
+            elif priors[i][0] == 'Normal':
+                mean, std = priors[i][1]
+                theta_list.append(pm.Normal(i, mean, std))
+            elif priors[i][0] == 'Exponential':
+                mean, = priors[i][1]
+                theta_list.append(pm.Exponential(i, mean))
+            else:
+                raise ValueError('Invalid prior type')
     
-        #input of our log-likelihood
-        theta = pt.as_tensor_variable(theta_list)
-    
-        # Likelihood of observations
-        pm.Potential("likelihood", likelihood(theta, intensity, freq, intensity_sig))
-
-    return ham_model
-
-def fit_curve(freq, theta):
-    """
-    Calculate the multi Gaussian peak curve fit using a set of given fitting parameters
-
-    Parameters
-    ----------
-    freq (NumPy array):
-        The array of normalized frequency (x data)
-    theta (list):
-        The list of fitting parameters, in the order u11, u20, A0, A1, A2, A3, A4, sigma_L
+        #input of the model prediction
+        theta = pt.as_tensor_variable(theta_list[:-1])
+        line = prediction_model(theta, freq)
         
-    Return
-    ---------
-    line (NumPy array):
-        The array of corresponding fitted intensity
-    """
-    ex = 0.669   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
-    ey = 0.6346    # for k = (+-0.05,0) the energy of uncoupled slab mode 2
-    u11, u20, A0, A1, A2, A3, A4, sigma_L = theta
-    An = [A1, A2, A3, A4]
-    
-    #Hamiltonian matrix and its eigenvalues as line peaks
-    H = [[ex,u11,u20,u11],
-         [u11,ey,u11,u20],
-         [u20,u11,ey,u11],
-         [u11,u20,u11,ex]]
-    Cn = np.real(np.linalg.eigvals(H))
-    Cn = np.sort(Cn)
-    
-    #calculate normalized intensity
-    line_each = [Ai * np.exp(-(freq - Ci)**2 / (2 * sigma_L**2)) for Ai, Ci in zip(An, Cn)]
-    line = np.sum(line_each, axis=0) + A0
-    
-    return line
+        # Uncertainty of the intensity is also a parameter
+        sigma_y = theta_list[-1]
+        
+        # Gaussian Likelihood of observations
+        likelihood = pm.Normal('likelihood', mu = line, sigma = sigma_y*pt.sqrt(intensity), observed = intensity)
+    return ham_model
