@@ -24,7 +24,7 @@ def prediction_model(theta, x):
     #interaction-between-modes terms u11, u20;
     #background intensity A0
     #heights of 4 peaks A1, A2, A3, A4
-    #quality factors of 4 peaks W1, W2, W3, W4
+    #quality factors of 4 peaks Q1, Q2, Q3, Q4
     u11, u20, e0, de, A0, A1, A2, A3, A4, Q1, Q2, Q3, Q4 = theta
 
     #energy of uncoupled modes
@@ -125,7 +125,7 @@ def Hamiltonian_model(data, priors):
         theta = pt.as_tensor_variable(theta_list[:-1])
         line = prediction_model(theta, freq)
         
-        # Uncertainty of the intensity is proportional to square root of intenstiy, sigma_y represent the ratio
+        # Uncertainty of the intensity is proportional to square root of intensity, sigma_y represent the ratio
         sigma_y = theta_list[-1]
         
         # Gaussian Likelihood of observations
