@@ -12,7 +12,7 @@ def prediction_model(theta, x):
     x (NumPy array):
         The array of normalized frequency
     theta (list of Floats or PyTensors):
-        The list of fitting parameters, in the order u11, u20, e0, de, A0, A1, A2, A3, A4, Q1, Q2, Q3, Q4
+        The list of fitting parameters, in the order u11, u20, e0, de, A0, A1, A2, A3, A4, W1, W2, W3, W4
         
     Return
     ---------
@@ -24,7 +24,7 @@ def prediction_model(theta, x):
     #interaction-between-modes terms u11, u20;
     #background A0
     #heights of 4 peaks A1, A2, A3, A4
-    #quality factors of 4 peaks Q1, Q2, Q3, Q4
+    #widths of 4 peaks W1, W2, W3, W4
     u11, u20, e0, de, A0, A1, A2, A3, A4, Q1, Q2, Q3, Q4 = theta
 
     #energy of uncoupled modes
@@ -45,7 +45,6 @@ def prediction_model(theta, x):
         Cn_np = np.real(np.linalg.eigvals(ham_np))
         Cn_np = np.sort(Cn_np)
         Wn_np = Cn_np/Qn_np
-    
         #calculate normalized intensity
         line_each = [(Ai * Wi**2) / ((x- Ci)**2 + Wi**2) for Ai, Ci, Wi in zip(An_np, Cn_np, Wn_np)]
         line = np.sum(line_each, axis=0) + A0
@@ -66,7 +65,6 @@ def prediction_model(theta, x):
         Cn = pt.nlinalg.eigh(ham)[0]
         Cn = pt.sort(Cn)
         Wn = Cn/Qn
-        
         #loop over An, Cn, Wn to calculate the cumulative sum of Lorentzians
         # output, updates = pytensor.scan(fn=lambda An, Cn, Wn: An * pt.sqr(Wn) / (pt.sqr(x-Cn) + pt.sqr(Wn)),
         #                                sequences=[An, Cn, Wn],
@@ -80,13 +78,13 @@ def Hamiltonian_model(data, priors):
     """
     returns a pymc model to infer the parameters for a 4-basis Hamiltonian.
     The piors on all parameters are either Uniform, Gaussian, or Exponential
-    The likelihood ~ Gaussian(line, sigma_y*sqrt(y))
+    The likelihood ~ Gaussian(line, sigma_y)
     Line is the expectation value obtained by taking the sum of background and 4 Lorentzians peaked
     at the eigenvalues of 4x4 Hamiltonian matrix
     
     Parameters:
         data: the data set of a single-momentum spectrum 
-              (DataArray with 'normf': frequency, 'y1', 'y2', 'y3', 'y4': results of 4 measurements for the same k point)
+              (DataArray with 'normf': frequency, 'spectrum': intensity, and 'spectrum_std': intensity uncertainty)
         priors: the prior types and prior coefficients of all parameters we want to infer
               (dict mapping a string, name of the parameter, to a tuple (prior_type, [prior coefficients]))
         For example: {'param 1':('Uniform', [lower bound, upper bound]),
