@@ -12,7 +12,7 @@ def prediction_model(theta, x):
     x (NumPy array):
         The array of normalized frequency
     theta (list of Floats or PyTensors):
-        The list of fitting parameters, in the order u11, u20, e0, de, A0, A1, A2, A3, A4, W1, W2, W3, W4
+        The list of fitting parameters, in the order u11, u20, e0, de, A0, A1, A2, A3, A4, Q1, Q2, Q3, Q4
         
     Return
     ---------
@@ -20,31 +20,31 @@ def prediction_model(theta, x):
         The array of corresponding fitted intensity
     """
     #for our 4-basis Hamiltonian, the parameters include
-    #energy and its deviation of uncoupled modes: e0, de
+    #energy and its deviation of uncoupled modes in uniform slab: e0, de
     #interaction-between-modes terms u11, u20;
-    #background A0
+    #background intensity A0
     #heights of 4 peaks A1, A2, A3, A4
-    #widths of 4 peaks W1, W2, W3, W4
+    #quality factors of 4 peaks W1, W2, W3, W4
     u11, u20, e0, de, A0, A1, A2, A3, A4, Q1, Q2, Q3, Q4 = theta
 
     #energy of uncoupled modes
-    ex = e0 + de   # for k = (0, +-0.05) the energy of uncoupled slab mode 1 
-    ey = e0 - de   # for k = (+-0.05,0) the energy of uncoupled slab mode 2
+    ex = e0 + de   # relatively high energy uncoupled modes. 2-fold degeneracy for C4 lattice along GM direction in H matrix
+    ey = e0 - de   # relatively low energy uncoupled modes. 2-fold degeneracy for C4 lattice along GM direction in H matrix
     
     #Hamiltonian matrix
     ham_np = np.array([[ex,u11,u20,u11],
-                       [u11,ey,u11,u20],
-                       [u20,u11,ey,u11],
-                       [u11,u20,u11,ex]])
+                 [u11,ey,u11,u20],
+                 [u20,u11,ey,u11],
+                 [u11,u20,u11,ex]])
     An_np = np.array([A1,A2,A3,A4])
     Qn_np = np.array([Q1,Q2,Q3,Q4])
     
     #Diagonalize the matrix in two cases
     #if diagonalize a Numpy array matrix object
     if isinstance(theta[0], pt.TensorVariable) == False:
-        Cn_np = np.real(np.linalg.eigvals(ham_np))
+        Cn_np = np.real(np.linalg.eigvals(ham_np))    # center frequency of each peak
         Cn_np = np.sort(Cn_np)
-        Wn_np = Cn_np/Qn_np
+        Wn_np = Cn_np/Qn_np                    # width (FWHM) of each peak
         #calculate normalized intensity
         line_each = [(Ai * Wi**2) / ((x- Ci)**2 + Wi**2) for Ai, Ci, Wi in zip(An_np, Cn_np, Wn_np)]
         line = np.sum(line_each, axis=0) + A0
@@ -62,9 +62,9 @@ def prediction_model(theta, x):
             An = pt.set_subtensor(An[col], An_np[col])
             Qn = pt.set_subtensor(Qn[col], Qn_np[col])
 
-        Cn = pt.nlinalg.eigh(ham)[0]
+        Cn = pt.nlinalg.eigh(ham)[0]          # center frequency of each peak
         Cn = pt.sort(Cn)
-        Wn = Cn/Qn
+        Wn = Cn/Qn                      # width (FWHM) of each peak
         #loop over An, Cn, Wn to calculate the cumulative sum of Lorentzians
         # output, updates = pytensor.scan(fn=lambda An, Cn, Wn: An * pt.sqr(Wn) / (pt.sqr(x-Cn) + pt.sqr(Wn)),
         #                                sequences=[An, Cn, Wn],
@@ -99,7 +99,7 @@ def Hamiltonian_model(data, priors):
     #extract data to numpy arrays
     freq = data['normf'].to_numpy()
     Nf = len(freq)
-    namef = ['y1','y2','y3','y4'] #measurements are repeated 4 times
+    namef = ['y1','y2','y3','y4']      #measurements are repeated 4 times
     intensity = np.zeros((4,Nf))
     intensity[:] = [data[namef[i]].to_numpy() for i in range(4)]
     
@@ -125,7 +125,7 @@ def Hamiltonian_model(data, priors):
         theta = pt.as_tensor_variable(theta_list[:-1])
         line = prediction_model(theta, freq)
         
-        # Uncertainty of the intensity is also a parameter
+        # Uncertainty of the intensity is proportional to square root of intenstiy, sigma_y represent the ratio
         sigma_y = theta_list[-1]
         
         # Gaussian Likelihood of observations
