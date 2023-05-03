@@ -33,7 +33,7 @@ class TestPredictionModel(TestCase):
         self.assertRaises(ValueError, Model.prediction_model, theta_insuff, freq)
 
 
-filename = "data\expdata_singleKspectrum.nc"
+filename = "data\expdata_singleKspectrum_055.nc"
 data = io_data.load_data(filename)
 priors_example = {'u11':('Uniform', [0.007, 0.01]), 
                   'u20':('Uniform', [-1e-3, 1e-3]), 
