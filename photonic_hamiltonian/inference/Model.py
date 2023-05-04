@@ -97,16 +97,10 @@ def Hamiltonian_model(data, priors):
     
     """
     #extract data to numpy arrays
-    # freq = data['normf'].to_numpy()
-    # Nf = len(freq)
-    # namef = ['y1','y2','y3','y4']      #measurements are repeated 4 times
-    # intensity = np.zeros((4,Nf))
-    # intensity[:] = [data[namef[i]].to_numpy() for i in range(4)]
-    
     freq = data['normf'].to_numpy()
-    namef = ['y1','y2','y3','y4']      #measurements are repeated 4 times
+    namef = ['y1', 'y2', 'y3', 'y4']      #measurements are repeated 4 times
     # intensity = np.zeros((4,Nf))
-    intensity = [data[i].to_numpy() for i in namef]
+    intensity = np.array([data[i].to_numpy() for i in namef])
     
     #create the multi Lorentzian peak model
     ham_model = pm.Model()
