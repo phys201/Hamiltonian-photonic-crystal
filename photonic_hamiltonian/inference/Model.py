@@ -65,11 +65,6 @@ def prediction_model(theta, x):
         Cn = pt.nlinalg.eigh(ham)[0]          # center frequency of each peak
         Cn = pt.sort(Cn)
         Wn = Cn/Qn                      # width (FWHM) of each peak
-        #loop over An, Cn, Wn to calculate the cumulative sum of Lorentzians
-        # output, updates = pytensor.scan(fn=lambda An, Cn, Wn: An * pt.sqr(Wn) / (pt.sqr(x-Cn) + pt.sqr(Wn)),
-        #                                sequences=[An, Cn, Wn],
-        #                                outputs_info=None)
-        # line = A0 + output.sum()
         line = A0 + An[0] * pt.sqr(Wn[0]) / (pt.sqr(x-Cn[0]) + pt.sqr(Wn[0])) + An[1] * pt.sqr(Wn[1]) / (pt.sqr(x-Cn[1]) + pt.sqr(Wn[1])) + An[2] * pt.sqr(Wn[2]) / (pt.sqr(x-Cn[2]) + pt.sqr(Wn[2])) + An[3] * pt.sqr(Wn[3]) / (pt.sqr(x-Cn[3]) + pt.sqr(Wn[3]))
     
     return line

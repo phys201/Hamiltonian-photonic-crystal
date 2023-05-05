@@ -2,10 +2,10 @@ import unittest
 from unittest import TestCase
 import numpy as np
 import xarray as xr
-from inference import io_data
+from photonic_hamiltonian.inference import io_data
 
 
-filename = "data\expdata_singleKspectrum_055.nc"
+filename = "photonic_hamiltonian\data\expdata_singleKspectrum_055.nc"
 data = io_data.load_data(filename)
 class TestDataConversion(TestCase):
     

@@ -3,7 +3,7 @@ import unittest
 from unittest import TestCase
 import numpy as np
 import pymc as pm
-from inference import Model, io_data
+from photonic_hamiltonian.inference import Model, io_data
         
 u11 = 0.007
 u20 = 1e-5
@@ -34,7 +34,7 @@ class TestPredictionModel(TestCase):
         self.assertRaises(ValueError, Model.prediction_model, theta_insuff, freq)
 
 
-filename = "data\expdata_singleKspectrum_055.nc"
+filename = "photonic_hamiltonian\data\expdata_singleKspectrum_055.nc"
 data = io_data.load_data(filename)
 priors_example = {'u11':('Uniform', [0.007, 0.01]), 
                   'u20':('Uniform', [-1e-3, 1e-3]), 
