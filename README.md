@@ -9,7 +9,7 @@ Photonic crystals (PhC) are micro/nano artificial atoms composed of periodically
 The raw data we will use is the transmitted spectrum with momentum resolution of a square-lattice (C4 symmetry) photonic crystal slab, measured by a CCD camera. The data set can be represented as $I(i,j,f)$ , where I refers to brightness of a CCD pixel (value between 0 and 255 in grayscale); $(i,j)$ is the label of pixels (320x240), corresponding to $(k_x, k_y)$ - the momentum of the optical response; $f$ refers to the frequency of input laser (wavelength between 1100 nm and 1700 nm). 
 
 ## Models
-The Hamiltonian matrix  consists of coupling parameters that describe the interaction between different slab modes in the basis. At each value of $(k_x, k_y)$, the energy levels can be obtained by diagonalizing the Hamiltonian matrix and finding its eigenvalues. Our model to fit the single-k spectrum is a multiple-Lorentzian-peak curve with each peak centered at one energy level.
+The Hamiltonian matrix  consists of coupling parameters that describe the interaction between different slab modes in the basis. At each value of $(k_x, k_y)$, the energy levels can be obtained by diagonalizing the Hamiltonian matrix and finding its eigenvalues. Our model to fit the single-$k$ spectrum is a multiple-Lorentzian-peak curve with each peak centered at one energy level.
 
 The number of bases corresponds to the dimension of the Hamiltonian matrix. Due to the C4 symmetry of our square lattice, the allowed basis sizes are 5, 9, 13,... We will perform parameter estimation for the 5 basis case.
 
